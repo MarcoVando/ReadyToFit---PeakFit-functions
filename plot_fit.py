@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 def plot_result(x, y, res, mask1=None, mask2=None):
 
     fig, ax = plt.subplots()
