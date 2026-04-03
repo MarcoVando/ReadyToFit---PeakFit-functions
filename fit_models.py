@@ -2,7 +2,7 @@ from scipy.optimize import curve_fit
 import numpy as np
 from models import build_model
 
-def fit_model(x, y, model1, model2, p0=None, bounds=None):
+def fit_model(x, y, model1, model2, mask1, mask2, p0_1=None, bounds_2=None, p0_2=None, bounds_2=None):
     """
     Generic 2-peak fitter.
 
@@ -10,11 +10,12 @@ def fit_model(x, y, model1, model2, p0=None, bounds=None):
     ----------
     model1, model2 : str
         "gauss", "voigt", "asym", "skew"
-
-    p0 : list
+    mask1, mask2 : str
+        x ranges where peak 1 and peak 2 are present
+    p0_1, p0_2 : list
         Initial parameters (user-defined or auto)
 
-    bounds : tuple (lower, upper)
+    bounds_1, bounds_2 : tuple (lower, upper)
         Parameter bounds
 
     Returns
@@ -25,26 +26,26 @@ def fit_model(x, y, model1, model2, p0=None, bounds=None):
     model_fun, n1, n2 = build_model(model1, model2)
 
     # ---- default initial guess ----
-    if p0 is None:
-        A0 = np.max(y)
+    if p0_1 is None:
+        a0 = np.max(y[mask_1])
         width = (x.max() - x.min()) / 2000
 
-        def default_params(model, A_guess):
+        def default_params(model, a_guess):
             if model == "gauss":
-                return [A_guess, x[np.argmax(y)], width]
+                return [a_guess, x[np.argmax(y[mask_1]), width]
 
             elif model == "voigt":
-                return [A_guess, x[np.argmax(y)], width, width / 2]
+                return [a_guess, x[np.argmax(y[mask_1])], width, width / 2]
 
             elif model == "asym":
-                return [A_guess, x[np.argmax(y)], width, width, width / 2]
+                return [a_guess, x[np.argmax(y[mask_1])], width, width, width / 2]
 
             elif model == "skew":
-                return [A_guess, x[np.argmax(y)], width, width / 2, 0]
+                return [a_guess, x[np.argmax(y[mask_1])], width, width / 2, 0]
 
         p0 = (
-            default_params(model1, A0) +
-            default_params(model2, A0 / 2)
+            default_params(model1, a0) +
+            default_params(model2, a0 / 2)
         )
 
     # ---- default bounds (fully free) ----
