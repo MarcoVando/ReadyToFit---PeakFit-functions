@@ -1,112 +1,179 @@
 import warnings
+from typing import List, Dict, Tuple, Optional
+import numpy as np
 
+
+# ---- Parameter definitions per model ----
 PARAM_ORDER = {
     "gauss": ["A", "mu", "sigma"],
     "voigt": ["A", "mu", "sigma", "gamma"],
     "asym":  ["A", "mu", "sigma_L", "sigma_R", "gamma"],
-    "skew":  ["A", "mu", "sigma", "gamma", "alpha"]
+    "skew":  ["A", "mu", "sigma", "gamma", "alpha"],
 }
 
-def flatten_params(peaks, p0_list):
+
+# ---------------------------------------------------------------------
+# PARAMETER TRANSFORMATIONS
+# ---------------------------------------------------------------------
+
+def flatten_params(peaks: List[Dict], p0_list: List[Dict]) -> Optional[List[float]]:
     """
-    Convert list-of-dicts into flat list for curve_fit
-    Adds warnings for malformed input
+    Convert structured parameter dictionaries into a flat list.
+
+    This is required by scipy.optimize.curve_fit.
+
+    Parameters
+    ----------
+    peaks : list of dict
+        Peak definitions.
+
+    p0_list : list of dict
+        Initial parameters (one dict per peak).
+
+    Returns
+    -------
+    flat : list of float or None
+        Flattened parameter list, or None if input is invalid.
     """
 
-    # ---- TYPE CHECK ----
+    # ---- Validate input type ----
     if not isinstance(p0_list, list) or not all(isinstance(p, dict) for p in p0_list):
         warnings.warn(
-            "p0 should be a list of dictionaries (one per peak). "
-            "Falling back to automatic defaults.",
+            "p0 must be a list of dictionaries (one per peak). Falling back to defaults.",
             UserWarning
         )
-        return None  # signal fallback
+        return None
 
-    # ---- LENGTH CHECK ----
+    # ---- Validate length ----
     if len(p0_list) != len(peaks):
         warnings.warn(
-            f"p0 length ({len(p0_list)}) does not match number of peaks ({len(peaks)}). "
-            "Missing peaks will use default values.",
+            f"p0 length ({len(p0_list)}) != number of peaks ({len(peaks)}). "
+            "Missing peaks will use defaults.",
             UserWarning
         )
 
-    flat = []
+    flat_params = []
 
-    for i, peak in enumerate(peaks):
+    for peak_idx, peak in enumerate(peaks):
         model = peak["model"]
-        names = PARAM_ORDER[model]
 
+        if model not in PARAM_ORDER:
+            raise ValueError(f"Unknown model: {model}")
+
+        # Remove fixed parameters
+        param_names = PARAM_ORDER[model]
         if "mu" in peak:
-            names = [n for n in names if n != "mu"]
+            param_names = [n for n in param_names if n != "mu"]
 
-        # safe access
-        params = p0_list[i] if i < len(p0_list) else {}
+        # Safe access to user parameters
+        params = p0_list[peak_idx] if peak_idx < len(p0_list) else {}
 
-        for name in names:
+        for name in param_names:
             if name in params:
-                flat.append(params[name])
+                flat_params.append(params[name])
             else:
                 warnings.warn(
-                    f"Missing parameter '{name}' for peak {i}. Using default value.",
+                    f"Missing parameter '{name}' for peak {peak_idx}. Using default value.",
                     UserWarning
                 )
-                flat.append(1.0)
+                flat_params.append(1.0)  # fallback default
 
-    return flat
-    
-def unflatten_params(peaks, popt):
+    return flat_params
+
+
+def unflatten_params(peaks: List[Dict], popt: List[float]) -> List[Dict]:
     """
-    Convert fitted array back to structured dict
+    Convert flat parameter array back into structured dictionaries.
+
+    Parameters
+    ----------
+    peaks : list of dict
+        Peak definitions.
+
+    popt : list of float
+        Optimized parameters (flat).
+
+    Returns
+    -------
+    params : list of dict
+        Structured parameters per peak.
     """
 
-    out = []
+    structured_params = []
     idx = 0
 
-    for i, peak in enumerate(peaks):
+    for peak in peaks:
         model = peak["model"]
 
-        names = PARAM_ORDER[model]
+        if model not in PARAM_ORDER:
+            raise ValueError(f"Unknown model: {model}")
+
+        param_names = PARAM_ORDER[model]
+
+        # Remove fixed parameters
         if "mu" in peak:
-            names = [n for n in names if n != "mu"]
+            param_names = [n for n in param_names if n != "mu"]
 
-        params = {}
+        peak_params = {}
 
-        for name in names:
-            params[name] = popt[idx]
+        for name in param_names:
+            peak_params[name] = popt[idx]
             idx += 1
 
-        # re-add fixed mu
+        # Reinsert fixed μ
         if "mu" in peak:
-            params["mu"] = peak["mu"]
+            peak_params["mu"] = peak["mu"]
 
-        out.append(params)
+        structured_params.append(peak_params)
 
-    return out
+    return structured_params
 
-def generate_default_p0(peaks, x, y):
+
+# ---------------------------------------------------------------------
+# DEFAULT GENERATORS
+# ---------------------------------------------------------------------
+
+def generate_default_p0(peaks: List[Dict], x: np.ndarray, y: np.ndarray) -> List[Dict]:
     """
-    Generate default initial parameters (list-of-dicts).
+    Generate default initial parameters (structured form).
+
+    Parameters
+    ----------
+    peaks : list of dict
+        Peak definitions.
+
+    x, y : array-like
+        Data used to estimate initial values.
+
+    Returns
+    -------
+    p0 : list of dict
+        Default parameter guesses.
     """
 
     p0 = []
 
+    # Global estimates from data
     A0 = np.max(y)
     x0 = x[np.argmax(y)]
     width = (x.max() - x.min()) / 20
 
-    for i, peak in enumerate(peaks):
+    for peak_idx, peak in enumerate(peaks):
         model = peak["model"]
+
+        if model not in PARAM_ORDER:
+            raise ValueError(f"Unknown model: {model}")
 
         params = {}
 
-        # amplitude scaled per peak
-        params["A"] = A0 / (i + 1)
+        # Amplitude scaled per peak
+        params["A"] = A0 / (peak_idx + 1)
 
-        # mu only if not fixed
+        # Only include μ if not fixed
         if "mu" not in peak:
             params["mu"] = x0
 
-        # model-specific params
+        # Model-specific defaults
         if model == "gauss":
             params["sigma"] = width
 
@@ -128,48 +195,86 @@ def generate_default_p0(peaks, x, y):
 
     return p0
 
-def generate_default_bounds(peaks):
+
+def generate_default_bounds(peaks: List[Dict]) -> Tuple[List[float], List[float]]:
     """
-    Generate default bounds (flat lists).
+    Generate default parameter bounds (no constraints).
+
+    Parameters
+    ----------
+    peaks : list of dict
+        Peak definitions.
+
+    Returns
+    -------
+    bounds : tuple (lower, upper)
+        Flat bounds lists for curve_fit.
     """
 
-    lower = []
-    upper = []
+    lower, upper = [], []
 
     for peak in peaks:
         model = peak["model"]
 
-        names = PARAM_ORDER[model]
+        if model not in PARAM_ORDER:
+            raise ValueError(f"Unknown model: {model}")
 
-        # remove fixed mu
+        param_names = PARAM_ORDER[model]
+
+        # Remove fixed μ
         if "mu" in peak:
-            names = [n for n in names if n != "mu"]
+            param_names = [n for n in param_names if n != "mu"]
 
-        for name in names:
-            # default: no constraints
+        for _ in param_names:
             lower.append(-np.inf)
             upper.append(np.inf)
 
-    return (lower, upper)
+    return lower, upper
 
 
-def validate_bounds(bounds, expected_len):
+# ---------------------------------------------------------------------
+# VALIDATION
+# ---------------------------------------------------------------------
+
+def validate_bounds(
+    bounds: Optional[Tuple[List[float], List[float]]],
+    expected_len: int
+) -> Optional[Tuple[List[float], List[float]]]:
     """
-    Validate bounds length and structure.
+    Validate bounds structure and size.
+
+    Parameters
+    ----------
+    bounds : tuple or None
+        Candidate bounds.
+
+    expected_len : int
+        Expected number of parameters.
+
+    Returns
+    -------
+    bounds : tuple or None
+        Validated bounds or None if invalid.
     """
 
     if bounds is None:
         return None
 
+    # Structure check
     if not isinstance(bounds, tuple) or len(bounds) != 2:
-        warnings.warn("Bounds must be a tuple (lower, upper). Using defaults.")
+        warnings.warn(
+            "Bounds must be a tuple (lower, upper). Using defaults.",
+            UserWarning
+        )
         return None
 
     lower, upper = bounds
 
+    # Length check
     if len(lower) != expected_len or len(upper) != expected_len:
         warnings.warn(
-            f"Bounds size mismatch (expected {expected_len}). Using defaults."
+            f"Bounds size mismatch (expected {expected_len}). Using defaults.",
+            UserWarning
         )
         return None
 
