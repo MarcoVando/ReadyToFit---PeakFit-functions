@@ -1,6 +1,7 @@
 from scipy.optimize import curve_fit
 import numpy as np
 from .models import build_model
+from .parameters import flatten_params, generate_default_p0, validate_bounds, generate_default_bounds
 from typing import List, Dict, Tuple, Callable, Optional
 
 def fit_model(
@@ -56,6 +57,7 @@ def fit_model(
         - "total_fit": full fitted curve
         - "peak_fits": list of individual peak curves
         - "residual": y - total_fit
+        - "rmse": root mean square error
         - "p0": final initial guess used
         - "bounds": final bounds used
         - "model_function": callable model
@@ -150,6 +152,7 @@ def fit_model(
         "total_fit": total_fit,
         "peak_fits": peak_fits,
         "residual": residual,
+        "rmse": np.sqrt(np.mean(residual**2)),
         "p0": final_p0,
         "bounds": final_bounds,
         "model_function": model_fun,

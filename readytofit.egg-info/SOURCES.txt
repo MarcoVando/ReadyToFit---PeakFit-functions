@@ -1,0 +1,16 @@
+LICENSE
+README.md
+setup.py
+readytofit/__init__.py
+readytofit/area_integration.py
+readytofit/fit_models.py
+readytofit/functions.py
+readytofit/models.py
+readytofit/parameters.py
+readytofit/peak_detection.py
+readytofit/plot_fit.py
+readytofit.egg-info/PKG-INFO
+readytofit.egg-info/SOURCES.txt
+readytofit.egg-info/dependency_links.txt
+readytofit.egg-info/requires.txt
+readytofit.egg-info/top_level.txt

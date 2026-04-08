@@ -5,6 +5,7 @@ A flexible and modular Python toolkit for multi-peak curve fitting, parameter ma
 This package is designed to handle arbitrary numbers of peaks with different models (Gaussian, Voigt, Asymmetric, Skewed), including support for fixed parameters (e.g., fixed peak centers μ).
 
 ## 🚀 Features
+🔹 **Automatic peak detection** — Intelligently finds peaks and estimates initial parameters  
 🔹 Multi-peak fitting with arbitrary peak count  
 🔹 Multiple peak models:  
 &emsp;- Gaussian  
@@ -13,7 +14,7 @@ This package is designed to handle arbitrary numbers of peaks with different mod
 &emsp;- Skewed  
 🔹 Support for fixed parameters (e.g., μ fixed per peak)  
 🔹 Automatic parameter flattening/unflattening  
-🔹 Robust initial guess generation  
+🔹 Intelligent initial guess generation from data  
 🔹 Flexible bounds handling  
 🔹 Full peak decomposition after fitting  
 🔹 Area integration for peaks and total signal  
@@ -21,149 +22,290 @@ This package is designed to handle arbitrary numbers of peaks with different mod
 
 ## ⚙️ Installation
 
-Clone the repository:
+Install from source:
 ```
-git clone https://github.com/your-username/ReadyToFit---PeakFit-functions.git
-cd ReadyToFit---PeakFit-functions
+git clone https://github.com/your-username/ReadyToFit.git
+cd ReadyToFit
+pip install .
 ```
 
-Install dependencies:
+Or install directly from GitHub:
 ```
-pip install numpy scipy matplotlib
+pip install git+https://github.com/your-username/ReadyToFit.git
 ```
+
+Dependencies: numpy, scipy, matplotlib (automatically installed).
 
 ## 🧠 Core Concept
 Each peak is defined as a dictionary:
 ```python
 peaks = [
     {"model": "gauss"},
-    {"model": "voigt", "mu": 50},  # fixed center
-    {"model": "skew"}
+    {"model": "voigt", "mu": 50},  # fixed center at x=50
+    {"model": "asym"}
 ]
 ```
-The system automatically:  
-- builds the composite model  
-- lattens parameters for optimization  
-- handles fixed parameters  
-- reconstructs fitted peaks  
 
-## 📈 Usage Example  
-**1. Fit a multi-peak signal**
+The system automatically:  
+- Detects peaks in data using `scipy.signal.find_peaks`
+- Estimates initial parameters (amplitude, position, width) from data
+- Builds the composite model (sum of all peaks)
+- Flattens parameters for optimization
+- Handles fixed parameters (removed from optimization, reinstated after fit)
+- Reconstructs fitted peaks
+
+## 🔍 Automatic p0 Generation & Peak Detection
+
+**The Problem:** Multi-peak fitting requires good initial guesses (`p0`). Bad guesses lead to poor convergence or fitting the wrong peaks.
+
+**The Solution:** ReadyToFit includes intelligent **automatic peak detection**:
+
+1. **Peak Detection** (`detect_peaks()`):
+   - Finds local maxima using local gradient analysis
+   - Filters by prominence (relative height above baseline)
+   - Estimates peak positions, amplitudes, and widths
+
+2. **Parameter Estimation** (`estimate_initial_parameters()`):
+   - Converts detected peaks into initial parameter guesses
+   - Estimates widths from Full-Width-Half-Maximum (FWHM)
+   - Respects user-defined fixed parameters (not overridden)
+
+3. **Automatic p0**:
+   - When `fit_model()` is called without `p0`, it auto-generates it
+   - Much more robust than naive guesses (e.g., same μ for all peaks)
+   - Can be overridden by providing manual `p0` if needed
+
+**Example:**
+```python
+from readytofit import detect_peaks
+
+# Detect peaks manually (optional — fit_model() does this automatically)
+detected = detect_peaks(x, y, n_peaks=3)
+# Returns: [{"mu": 25.5, "A": 4.8, "sigma": 5.1}, ...]
+```  
+
+## 📈 Usage Examples
+
+### Automatic Peak Detection & Fitting (Recommended)
+
+The simplest approach: ReadyToFit **automatically detects peaks and estimates initial parameters**.
 
 ```python
-from fit_models import fit_model
+from readytofit import fit_model
 import numpy as np
+import matplotlib.pyplot as plt
 
-# synthetic data
-x = np.linspace(0, 100, 500)
-y = np.sin(x/10) + np.random.normal(0, 0.05, len(x))
+# Your noisy multi-peak data
+x = np.array([...])
+y = np.array([...])
 
-# define peaks
+# Define peak structure (models only — parameters auto-detected)
 peaks = [
     {"model": "gauss"},
-    {"model": "voigt"},
-    {"model": "skew"}
+    {"model": "gauss"},
+    {"model": "voigt"}
 ]
 
-p0 = [{"A": 100, "sigma": 5, "mu": 50},
-      {"A": 100, "sigma": 5, "mu": 50, "sigma": 1, "gamma": 1},
-      {"A": 100, "sigma": 5, "mu": 50, "sigma": 1, "gamma": 1, "alpha": 0.8}]
+# Fit — p0 and initial parameters are auto-generated!
+result = fit_model(x, y, peaks)
 
-lower = [0, 0, 0,
-        0, 0, 0, 0,
-        0, 0, 0, 0, 0,]
-upper = [np.inf, np.inf, np.inf,
-        np.inf, np.inf, np.inf, np.inf, np.inf,
-        np.inf, np.inf, np.inf, np.inf, np.inf, np.inf]
-result = fit_model(x, y, peaks, p0=p0, bounds=(lower, upper))
+print(f"RMSE: {result['rmse']:.4f}")
+print("Fitted parameters per peak:")
+for i, peak_params in enumerate(result["params"]):
+    print(f"  Peak {i+1}: {peak_params}")
 ```
 
-**2. Plot results**
+**How auto-detection works:**
+1. **Peak finding**: Uses `scipy.signal.find_peaks` to locate local maxima
+2. **Parameter estimation**: Estimates amplitude (A), center (μ), and width (σ) from data
+3. **Smart initial guess**: Provides excellent starting point for optimization
+4. **Respects fixed parameters**: If you specify `"mu": 50`, it's locked and not overridden
+
+### With Fixed Parameters
+
+Lock specific parameter values (e.g., peak center):
+
 ```python
-from plot_fit import plot_fit_result
-plot_fit_result(x, y, result)
+peaks = [
+    {"model": "gauss"},              # All parameters free
+    {"model": "gauss", "mu": 50},    # Center fixed at x=50
+    {"model": "voigt", "mu": 80}     # Center fixed at x=80
+]
+
+result = fit_model(x, y, peaks)
+
+# View results (fixed parameters are preserved in result["params"])
+assert result["params"][1]["mu"] == 50  # mu is locked
+assert result["params"][1]["A"] is not None  # A and sigma are fitted
 ```
-**3. Compute peak areas**
+
+### Manual Initial Guess (Advanced)
+
+Override automatic detection with manual p0:
+
 ```python
-from area_integration import evaluate_peak_areas
+# Manual initial guesses (if you know better than auto-detection!)
+p0 = [
+    {"A": 100, "mu": 25, "sigma": 5},
+    {"A": 80, "mu": 75, "sigma": 6}
+]
+
+result = fit_model(x, y, peaks, p0=p0)
+```
+
+### Plotting Results
+
+```python
+from readytofit import plot_fit_result
+
+fig, ax = plt.subplots(figsize=(10, 6))
+plot_fit_result(x, y, result, show_residual=True, show_rmse=True, fig=fig, ax=ax)
+fig.suptitle("Multi-Peak Fitting Results")
+plt.savefig("fit_result.png")
+plt.close()
+```
+
+**Example output:**
+
+![Fitting Results](test_fit.png)
+
+### Computing Peak Areas
+
+```python
+from readytofit import evaluate_peak_areas
 
 areas = evaluate_peak_areas(x, result)
 
-print("Total area:", areas["total"])
-print("Peak areas:", areas["peaks"])
+print(f"Total signal area: {areas['total']:.2f}")
+print(f"Individual peak areas: {areas['peaks']}")
 ```
 
-**4. Access fitted parameters**
+### Automatic Peak Detection (Standalone)
+
+Detect peaks without fitting:
+
 ```python
-from parameters import unflatten_params
+from readytofit import detect_peaks
 
-params = unflatten_params(peaks, result["popt"])
+detected = detect_peaks(x, y, n_peaks=3)
 
-for i, p in enumerate(params):
-    print(f"Peak {i}:", p)
+for i, peak in enumerate(detected):
+    print(f"Peak {i+1}:")
+    print(f"  Center (μ): {peak['mu']:.2f}")
+    print(f"  Amplitude (A): {peak['A']:.3f}")
+    print(f"  Width (σ): {peak['sigma']:.3f}")
 ```
-## 📊 Output Example
+## 📊 fit_model() Output
 
-After fitting, result contains:
+The `fit_model()` function returns a comprehensive results dictionary:
+
 ```python
-{
-    "popt": [...],              # optimized parameters
-    "total_fit": [...],        # full reconstructed signal
-    "peak_fits": [...],        # individual peaks
-    "residual": [...],         # y - fit
-    "param_names": [...],      # parameter labels
-    "param_slices": [...],     # index mapping
+result = {
+    # Parameters
+    "popt": [...],                    # Optimized parameters (flat, free only)
+    "params": [                       # Structured parameters per peak
+        {"A": 5.0, "mu": 30.0, "sigma": 5.1},
+        {"A": 3.0, "mu": 70.0, "sigma": 3.0}
+    ],
+    
+    # Fitted curves
+    "total_fit": [...],               # Full reconstructed signal
+    "peak_fits": [...],               # Individual peaks
+    
+    # Diagnostics
+    "residual": [...],                # y - total_fit
+    "rmse": 0.1006,                   # Root mean square error
+    
+    # Metadata
+    "param_names": [...],             # Names of free parameters
+    "param_slices": [...],            # Index mapping per peak
+    "model_function": callable,       # Composite model function
+    "p0": [...],                      # Initial guess used
+    "bounds": (lower, upper)          # Bounds used in optimization
 }
 ```
 
-## 🔬 Supported Peak Models
-|Model	|Parameters  |
-|-------|------------|
-|gauss	|A, μ, σ|
-|voigt	|A, μ, σ, γ|
-|asym	|A, μ, σL, σR, γ|
-|skew	|A, μ, σ, γ, α|
+**Access results:**
+```python
+# Check fit quality
+print(f"RMSE: {result['rmse']:.4f}")
 
-If mu is fixed:
+# Get all parameters (including fixed ones)
+for i, peak in enumerate(result["params"]):
+    print(f"Peak {i}: {peak}")
+
+# Get fitted curve and residuals
+y_fitted = result["total_fit"]
+residuals = result["residual"]
+
+# Get individual peak contributions
+for i, peak_curve in enumerate(result["peak_fits"]):
+    plt.plot(x, peak_curve, label=f"Peak {i}")
+```
+
+## 🔬 Supported Peak Models
+|Model	|Parameters  | Use Case |
+|-------|------------|----------|
+|gauss	|A, μ, σ | Symmetric peaks (most common) |
+|voigt	|A, μ, σ, γ | Symmetric peaks with natural broadening |
+|asym	|A, μ, σL, σR, γ | Asymmetric peaks (different left/right widths) |
+|skew	|A, μ, σ, γ, α | Peaks with asymmetric tails |
+
+**Legend:**
+- **A**: Amplitude (peak height above baseline)
+- **μ**: Center position (can be fixed: `{"model": "gauss", "mu": 50}`)
+- **σ**: Standard deviation (width parameter)
+- **σL, σR**: Left/right widths for asymmetric model
+- **γ**: Lorentz width (natural line broadening)
+- **α**: Skew parameter (asymmetry control)
+
+Fixed parameters are removed from optimization. Example:
 ```python
 {"model": "gauss", "mu": 50}
+# → Only A and sigma are fitted; mu is locked at 50
 ```
-→ μ is removed from optimization.
 
 ## 📐 Key Features in Detail
-🔹 Automatic parameter handling  
-No manual indexing required — parameters are flattened internally.
+🔹 **Automatic parameter handling**  
+No manual indexing required — parameters are flattened internally and fixed parameters are properly managed.
 
-🔹 Robust fitting pipeline
-Handles:
-- missing p0
-- partial bounds
-i- nvalid input gracefully
+🔹 **Robust fitting pipeline**  
+Handles missing p0, partial bounds, and invalid input gracefully with intelligent fallbacks.
 
-🔹 Full decomposition
-You can inspect:
-- total fit
-- individual peaks
-- residuals
-- peak areas
+🔹 **Full decomposition**  
+Inspect total fit, individual peaks, residuals, and peak areas independently.
 
-## 📉 Visualization
+🔹 **Peak detection**  
+`detect_peaks()` and `estimate_initial_parameters()` enable automatic initial guess generation.
 
-The plotting utility includes:
+## 📚 Public API Reference
 
-- raw data
-- total fit
-- individual peaks (dashed)
-- filled peak areas
-- residual curve
-- RMSE annotation
+### Core Fitting
+- **`fit_model(x, y, peaks, p0=None, bounds=None, debug=False)`**  
+  Main fitting function. Automatically detects peaks and estimates p0 if not provided.
 
+### Visualization
+- **`plot_fit_result(x, y, result, show_residual=True, show_rmse=True, fig=None, ax=None)`**  
+  Plot raw data, total fit, individual peaks, residuals, and RMSE.
 
-## 📦 Dependencies
-numpy
-scipy
+### Peak Detection
+- **`detect_peaks(x, y, n_peaks=None, height_threshold=0.1, prominence_threshold=None, distance=None)`**  
+  Automatically detect peaks. Returns list of peak dictionaries with estimated parameters.
+
+- **`estimate_initial_parameters(x, y, peaks)`**  
+  Estimate initial parameters from data. Respects fixed parameters in peak definitions.
+
+### Area Integration
+- **`evaluate_peak_areas(x, result)`**  
+  Compute areas of total fit and individual peaks using trapezoidal rule.
+
+- **`area_integration(y, x=None)`**  
+  Low-level numerical integration utility.
+
+## � Dependencies
+numpy  
+scipy  
 matplotlib
-
 
 ## ⭐ Author Notes
 

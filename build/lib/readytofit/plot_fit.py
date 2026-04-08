@@ -2,8 +2,9 @@ from typing import Optional, Dict
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def plot_fit_result( x: np.ndarray, y: np.ndarray, result: Dict, show_residual: bool = True,
-                     residual_offset: float = -0.1, show_rmse: bool = True, ) -> None:
+                     residual_offset: float = -0.1, show_rmse: bool = True, fig: Optional[plt.Figure] = None, ax: Optional[plt.Axes] = None) -> None:
     """
     Plot multi-peak fitting results.
 
@@ -32,10 +33,19 @@ def plot_fit_result( x: np.ndarray, y: np.ndarray, result: Dict, show_residual: 
         Vertical offset for residual visualization.
 
     show_rmse : bool
-        Display RMSE on plot if True.
+        Display RMSE on plot if True
+    
+    fig, ax : matplotlib Figure and Axes, optional
+        If provided, plots on these axes instead of creating new ones.
+    
+    Returns
+    ----------
+    None
+    
     """
 
-    fig, ax = plt.subplots()
+    if fig is None or ax is None:
+        fig, ax = plt.subplots()
 
     # =========================================================
     # DATA + TOTAL FIT
