@@ -42,13 +42,13 @@ peaks = [
 ]
 ```
 The system automatically:  
-      -builds the composite model  
-      -lattens parameters for optimization  
-      -handles fixed parameters  
-      -reconstructs fitted peaks  
+- builds the composite model  
+- lattens parameters for optimization  
+- handles fixed parameters  
+- reconstructs fitted peaks  
 
-📈 Usage Example  
-1. Fit a multi-peak signal
+## 📈 Usage Example  
+**1. Fit a multi-peak signal**
 
 ```
 from fit_models import fit_model
@@ -68,12 +68,12 @@ peaks = [
 result = fit_model(x, y, peaks)
 ```
 
-2. Plot results
+**2. Plot results**
 ```
 from plot_fit import plot_fit_result
 plot_fit_result(x, y, result)
 ```
-4. Compute peak areas
+**3. Compute peak areas**
 ```
 from area_integration import evaluate_peak_areas
 
@@ -83,7 +83,7 @@ print("Total area:", areas["total"])
 print("Peak areas:", areas["peaks"])
 ```
 
-4. Access fitted parameters
+**4. Access fitted parameters**
 ```
 from parameters import unflatten_params
 
@@ -92,7 +92,7 @@ params = unflatten_params(peaks, result["popt"])
 for i, p in enumerate(params):
     print(f"Peak {i}:", p)
 ```
-📊 Output Example
+## 📊 Output Example
 
 After fitting, result contains:
 ```
@@ -106,7 +106,7 @@ After fitting, result contains:
 }
 ```
 
-🔬 Supported Peak Models
+## 🔬 Supported Peak Models
 Model	Parameters
 gauss	A, μ, σ
 voigt	A, μ, σ, γ
@@ -120,36 +120,32 @@ If mu is fixed:
 → μ is removed from optimization.
 
 ## 📐 Key Features in Detail
-🔹 Automatic parameter handling
-
+🔹 Automatic parameter handling  
 No manual indexing required — parameters are flattened internally.
 
 🔹 Robust fitting pipeline
-
 Handles:
+- missing p0
+- partial bounds
+i- nvalid input gracefully
 
-missing p0
-partial bounds
-invalid input gracefully
 🔹 Full decomposition
-
 You can inspect:
-
-total fit
-individual peaks
-residuals
-peak areas
+- total fit
+- individual peaks
+- residuals
+- peak areas
 
 ## 📉 Visualization
 
 The plotting utility includes:
 
-raw data
-total fit
-individual peaks (dashed)
-filled peak areas
-residual curve
-RMSE annotation
+- raw data
+- total fit
+- individual peaks (dashed)
+- filled peak areas
+- residual curve
+- RMSE annotation
 
 
 ## 📦 Dependencies
