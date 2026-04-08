@@ -1,6 +1,6 @@
 from scipy.optimize import curve_fit
 import numpy as np
-from models import build_model
+from .models import build_model
 from typing import List, Dict, Tuple, Callable, Optional
 
 def fit_model(
