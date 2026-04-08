@@ -1,8 +1,6 @@
 from typing import Optional, Dict
-from typing import Dict
 import numpy as np
 import matplotlib.pyplot as plt
-
 
 def plot_fit_result( x: np.ndarray, y: np.ndarray, result: Dict, show_residual: bool = True,
                      residual_offset: float = -0.1, show_rmse: bool = True, ) -> None:
