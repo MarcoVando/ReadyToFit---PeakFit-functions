@@ -1,34 +1,101 @@
+from typing import Optional, Dict
+import numpy as np
 import matplotlib.pyplot as plt
 
-def plot_result(x, y, res, mask1=None, mask2=None):
+
+def plot_fit_result( x: np.ndarray,y: np.ndarray,result: Dict,show_residual: bool = True,residual_offset: float = -0.1, show_rmse: bool = True,) -> None:
+    """
+    General-purpose plotting for multi-peak fitting.
+
+    Features
+    --------
+    - Raw data
+    - Total fit
+    - Individual peaks (dashed, thin)
+    - Filled peak areas
+    - Residual plot
+    - RMSE annotation
+
+    Parameters
+    ----------
+    x, y : array-like
+        Input data.
+
+    result : dict
+        Output from `fit_model`.
+
+    show_residual : bool
+        Whether to plot residual.
+
+    residual_offset : float
+        Vertical offset for residual.
+
+    show_rmse : bool
+        Whether to display RMSE on plot.
+    """
 
     fig, ax = plt.subplots()
 
+    # ---- raw data ----
     ax.plot(x, y, label="data", linewidth=2)
 
-    # ---- optional region highlight ----
-    if mask1 is not None:
-        ax.plot(x[mask1], y[mask2], color="orange", alpha=0.6)
+    # ---- total fit ----
+    total_fit = result["total_fit"]
+    ax.plot(x, total_fit, color="red", label="total fit", linewidth=2)
 
-    if mask2 is not None:
-        ax.plot(x[mask1], y[mask2], color="purple", alpha=0.6)
+    # ---- individual peaks ----
+    peak_fits = result.get("peak_fits", [])
 
-    # ---- initial guesses ----
-    ax.plot(x, res["peak1_guess"], "--", color="gray", alpha=0.5,)
-    ax.plot(x, res["peak2_guess"], "--", color="gray", alpha=0.5,)
+    for i, peak in enumerate(peak_fits):
+        # dashed thin line
+        ax.plot(
+            x,
+            peak,
+            linestyle="--",
+            linewidth=1,
+            alpha=0.9,
+            label=f"peak {i}"
+        )
 
-    # ---- fitted peaks ----
-    ax.plot(x, res["peak1_fit"], color="orange", label="LDPE fit")
-    ax.plot(x, res["peak2_fit"], color="purple", label="HDPE fit")
-    ax.plot(x, res["total_fit"], color="red", label="total fit")
-
-    # ---- filled areas under peaks ----
-    ax.fill_between(x, res["peak1_fit"], color="orange", alpha=0.3)
-    ax.fill_between(x, res["peak2_fit"], color="purple", alpha=0.3)
+        # filled area
+        ax.fill_between(
+            x,
+            peak,
+            alpha=0.25
+        )
 
     # ---- residual ----
-    ax.plot(x, y - res["total_fit"] - 0.1, color="black", label="residual")
-    ax.plot(x, np.zeros_like(x) - 0.1, color="gray", alpha=0.5)
+    if show_residual:
+        residual = y - total_fit
+
+        ax.plot(
+            x,
+            residual + residual_offset,
+            color="black",
+            linewidth=1,
+            label="residual"
+        )
+
+        ax.plot(
+            x,
+            np.zeros_like(x) + residual_offset,
+            color="gray",
+            alpha=0.5
+        )
+
+    # ---- RMSE ----
+    if show_rmse:
+        residual = y - total_fit
+        rmse = np.sqrt(np.mean(residual**2))
+
+        ax.text(
+            0.02,
+            0.95,
+            f"RMSE = {rmse:.4g}",
+            transform=ax.transAxes,
+            verticalalignment="top"
+        )
 
     ax.legend()
+    plt.tight_layout()
     plt.show()
