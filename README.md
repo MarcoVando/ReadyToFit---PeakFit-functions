@@ -65,7 +65,12 @@ peaks = [
     {"model": "skew"}
 ]
 
-result = fit_model(x, y, peaks)
+p0 = [{"A": 100, "sigma": 5, "mu": 50},
+      {"A": 100, "sigma": 5, "mu": 50}]
+
+lower = [0, 0, 0  0, 0]
+upper = [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf]
+result = fit_model(x, y, peaks, p0=p0, bounds=(lower, upper))
 ```
 
 **2. Plot results**
