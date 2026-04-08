@@ -1,4 +1,4 @@
-import .functions
+from .functions import *
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy.special import voigt_profile, erf
