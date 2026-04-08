@@ -1,20 +1,21 @@
 from typing import Optional, Dict
+from typing import Dict
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_fit_result( x: np.ndarray,y: np.ndarray,result: Dict,show_residual: bool = True,residual_offset: float = -0.1, show_rmse: bool = True,) -> None:
+def plot_fit_result( x: np.ndarray, y: np.ndarray, result: Dict, show_residual: bool = True,
+                     residual_offset: float = -0.1, show_rmse: bool = True, ) -> None:
     """
-    General-purpose plotting for multi-peak fitting.
+    Plot multi-peak fitting results.
 
-    Features
-    --------
+    Displays:
     - Raw data
     - Total fit
-    - Individual peaks (dashed, thin)
+    - Individual peak contributions
     - Filled peak areas
-    - Residual plot
-    - RMSE annotation
+    - Residual (optional)
+    - RMSE (optional)
 
     Parameters
     ----------
@@ -22,79 +23,57 @@ def plot_fit_result( x: np.ndarray,y: np.ndarray,result: Dict,show_residual: boo
         Input data.
 
     result : dict
-        Output from `fit_model`.
+        Output from `fit_model`, must contain:
+        - "total_fit"
+        - "peak_fits"
 
     show_residual : bool
-        Whether to plot residual.
+        Plot residual if True.
 
     residual_offset : float
-        Vertical offset for residual.
+        Vertical offset for residual visualization.
 
     show_rmse : bool
-        Whether to display RMSE on plot.
+        Display RMSE on plot if True.
     """
 
     fig, ax = plt.subplots()
 
-    # ---- raw data ----
+    # =========================================================
+    # DATA + TOTAL FIT
+    # =========================================================
     ax.plot(x, y, label="data", linewidth=2)
 
-    # ---- total fit ----
     total_fit = result["total_fit"]
-    ax.plot(x, total_fit, color="red", label="total fit", linewidth=2)
+    ax.plot(x, total_fit, color="red", linewidth=2, label="total fit")
 
-    # ---- individual peaks ----
-    peak_fits = result.get("peak_fits", [])
+    # =========================================================
+    # INDIVIDUAL PEAKS
+    # =========================================================
+    for i, peak in enumerate(result.get("peak_fits", [])):
+        # dashed peak contribution
+        ax.plot( x, peak, linestyle="--", linewidth=1, alpha=0.9, label=f"peak {i}")
 
-    for i, peak in enumerate(peak_fits):
-        # dashed thin line
-        ax.plot(
-            x,
-            peak,
-            linestyle="--",
-            linewidth=1,
-            alpha=0.9,
-            label=f"peak {i}"
-        )
+        # filled area under peak
+        ax.fill_between(x, peak, alpha=0.25)
 
-        # filled area
-        ax.fill_between(
-            x,
-            peak,
-            alpha=0.25
-        )
-
-    # ---- residual ----
+    # =========================================================
+    # RESIDUAL
+    # =========================================================
     if show_residual:
         residual = y - total_fit
 
-        ax.plot(
-            x,
-            residual + residual_offset,
-            color="black",
-            linewidth=1,
-            label="residual"
-        )
+        ax.plot(x, residual + residual_offset, color="black",
+            linewidth=1, label="residual")
 
-        ax.plot(
-            x,
-            np.zeros_like(x) + residual_offset,
-            color="gray",
-            alpha=0.5
-        )
+        ax.plot(x, np.full_like(x, residual_offset), color="gray", alpha=0.5)
 
-    # ---- RMSE ----
+    # =========================================================
+    # RMSE METRIC
+    # =========================================================
     if show_rmse:
-        residual = y - total_fit
-        rmse = np.sqrt(np.mean(residual**2))
-
-        ax.text(
-            0.02,
-            0.95,
-            f"RMSE = {rmse:.4g}",
-            transform=ax.transAxes,
-            verticalalignment="top"
-        )
+        rmse = np.sqrt(np.mean((y - total_fit) ** 2))
+        ax.text(0.02, 0.95, f"RMSE = {rmse:.4g}", transform=ax.transAxes, verticalalignment="top")
 
     ax.legend()
     plt.tight_layout()
