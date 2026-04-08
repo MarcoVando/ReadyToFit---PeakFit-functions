@@ -7,7 +7,7 @@ This package is designed to handle arbitrary numbers of peaks with different mod
 ## 🚀 Features
 🔹 Multi-peak fitting with arbitrary peak count  
 🔹 Multiple peak models:  
-     \t- Gaussian  
+      &emsp;- Gaussian  
       - Voigt  
       - Asymmetric  
       - Skewed  
