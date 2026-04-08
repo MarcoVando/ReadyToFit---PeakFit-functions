@@ -107,11 +107,12 @@ After fitting, result contains:
 ```
 
 ## 🔬 Supported Peak Models
-Model	Parameters
-gauss	A, μ, σ
-voigt	A, μ, σ, γ
-asym	A, μ, σL, σR, γ
-skew	A, μ, σ, γ, α
+|Model	|Parameters  |
+|-------|------------|
+|gauss	|A, μ, σ|
+|voigt	|A, μ, σ, γ|
+|asym	|A, μ, σL, σR, γ|
+|skew	|A, μ, σ, γ, α|
 
 If mu is fixed:
 ```python
