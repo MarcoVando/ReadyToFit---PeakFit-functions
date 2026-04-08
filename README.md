@@ -34,7 +34,7 @@ pip install numpy scipy matplotlib
 
 ## 🧠 Core Concept
 Each peak is defined as a dictionary:
-```
+```python
 peaks = [
     {"model": "gauss"},
     {"model": "voigt", "mu": 50},  # fixed center
@@ -50,7 +50,7 @@ The system automatically:
 ## 📈 Usage Example  
 **1. Fit a multi-peak signal**
 
-```
+```python
 from fit_models import fit_model
 import numpy as np
 
@@ -69,12 +69,12 @@ result = fit_model(x, y, peaks)
 ```
 
 **2. Plot results**
-```
+```python
 from plot_fit import plot_fit_result
 plot_fit_result(x, y, result)
 ```
 **3. Compute peak areas**
-```
+```python
 from area_integration import evaluate_peak_areas
 
 areas = evaluate_peak_areas(x, result)
@@ -84,7 +84,7 @@ print("Peak areas:", areas["peaks"])
 ```
 
 **4. Access fitted parameters**
-```
+```python
 from parameters import unflatten_params
 
 params = unflatten_params(peaks, result["popt"])
@@ -95,7 +95,7 @@ for i, p in enumerate(params):
 ## 📊 Output Example
 
 After fitting, result contains:
-```
+```python
 {
     "popt": [...],              # optimized parameters
     "total_fit": [...],        # full reconstructed signal
@@ -114,7 +114,7 @@ asym	A, μ, σL, σR, γ
 skew	A, μ, σ, γ, α
 
 If mu is fixed:
-```
+```python
 {"model": "gauss", "mu": 50}
 ```
 → μ is removed from optimization.
