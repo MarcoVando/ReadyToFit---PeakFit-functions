@@ -7,10 +7,10 @@ This package is designed to handle arbitrary numbers of peaks with different mod
 ## 🚀 Features
 🔹 Multi-peak fitting with arbitrary peak count  
 🔹 Multiple peak models:  
-      &emsp;- Gaussian  
-      - Voigt  
-      - Asymmetric  
-      - Skewed  
+&emsp;- Gaussian  
+&emsp;- Voigt  
+&emsp;- Asymmetric  
+&emsp;- Skewed  
 🔹 Support for fixed parameters (e.g., μ fixed per peak)  
 🔹 Automatic parameter flattening/unflattening  
 🔹 Robust initial guess generation  
