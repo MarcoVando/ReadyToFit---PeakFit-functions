@@ -66,10 +66,15 @@ peaks = [
 ]
 
 p0 = [{"A": 100, "sigma": 5, "mu": 50},
-      {"A": 100, "sigma": 5, "mu": 50}]
+      {"A": 100, "sigma": 5, "mu": 50, "sigma": 1, "gamma": 1},
+      {"A": 100, "sigma": 5, "mu": 50, "sigma": 1, "gamma": 1, "alpha": 0.8}]
 
-lower = [0, 0, 0, 0, 0, 0]
-upper = [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf]
+lower = [0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0, 0,]
+upper = [np.inf, np.inf, np.inf,
+        np.inf, np.inf, np.inf, np.inf, np.inf,
+        np.inf, np.inf, np.inf, np.inf, np.inf, np.inf]
 result = fit_model(x, y, peaks, p0=p0, bounds=(lower, upper))
 ```
 
