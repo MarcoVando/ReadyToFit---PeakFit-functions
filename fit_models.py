@@ -1,79 +1,165 @@
 from scipy.optimize import curve_fit
 import numpy as np
 from models import build_model
+from typing import List, Dict, Tuple, Callable, Optional
 
-def fit_model(x, y, model1, model2, mask1, mask2, p0_1=None, bounds_2=None, p0_2=None, bounds_2=None):
+def fit_model(
+    x: np.ndarray,
+    y: np.ndarray,
+    peaks: List[Dict],
+    p0: Optional[List[float]] = None,
+    bounds: Optional[Tuple[List[float], List[float]]] = None,
+    debug: bool = False
+) -> Dict:
     """
-    Generic 2-peak fitter.
+    Fit a multi-peak model to data using scipy.optimize.curve_fit.
+
+    This function builds a composite model from multiple peak definitions
+    and fits it to the provided (x, y) data.
 
     Parameters
     ----------
-    model1, model2 : str
-        "gauss", "voigt", "asym", "skew"
-    mask1, mask2 : str
-        x ranges where peak 1 and peak 2 are present
-    p0_1, p0_2 : list
-        Initial parameters (user-defined or auto)
+    x : array-like
+        Independent variable data.
 
-    bounds_1, bounds_2 : tuple (lower, upper)
-        Parameter bounds
+    y : array-like
+        Dependent variable data.
+
+    peaks : list of dict
+        List of peak definitions. Each dict must include:
+            - "model": str
+                Model type ("gauss", "voigt", "asym", "skew")
+
+        Optional:
+            - "mu": float
+                If provided, fixes the peak center (μ is not fitted).
+
+    p0 : list of float, optional
+        Initial parameter guess (flattened across all peaks).
+        Can be partial or contain None values → auto-filled.
+
+    bounds : tuple (lower, upper), optional
+        Bounds for parameters. Each must match parameter length.
+        Use None entries for defaults.
+        To fix a parameter: set lower[i] == upper[i].
+
+    debug : bool, default=False
+        If True, prints fitted parameter values.
 
     Returns
     -------
-    dict with popt, fits, residuals
+    result : dict
+        Dictionary containing:
+
+        - "popt": optimized parameters (flat list)
+        - "param_names": parameter names
+        - "total_fit": full fitted curve
+        - "peak_fits": list of individual peak curves
+        - "residual": y - total_fit
+        - "p0": final initial guess used
+        - "bounds": final bounds used
+        - "model_function": callable model
+        - "param_slices": parameter index ranges per peak
     """
 
-    model_fun, n1, n2 = build_model(model1, model2)
+    # ---- Build composite model ----
+    model_fun, param_slices, param_names = build_model(peaks)
 
-    # ---- default initial guess ----
-    if p0_1 is None:
-        a0 = np.max(y[mask_1])
-        width = (x.max() - x.min()) / 2000
+    # ---- Generate default initial guess (data-driven) ----
+    A0 = np.max(y)
+    x0 = x[np.argmax(y)]
+    width = (x.max() - x.min()) / 20
 
-        def default_params(model, a_guess):
-            if model == "gauss":
-                return [a_guess, x[np.argmax(y[mask_1]), width]
+    default_p0 = []
 
-            elif model == "voigt":
-                return [a_guess, x[np.argmax(y[mask_1])], width, width / 2]
+    for peak_idx, peak in enumerate(peaks):
+        model = peak["model"]
+        A_guess = A0 / (peak_idx + 1)
 
-            elif model == "asym":
-                return [a_guess, x[np.argmax(y[mask_1])], width, width, width / 2]
+        # Define default parameters per model
+        if model == "gauss":
+            params = [A_guess, x0, width]
 
-            elif model == "skew":
-                return [a_guess, x[np.argmax(y[mask_1])], width, width / 2, 0]
+        elif model == "voigt":
+            params = [A_guess, x0, width, width / 2]
 
-        p0 = (
-            default_params(model1, a0) +
-            default_params(model2, a0 / 2)
-        )
+        elif model == "asym":
+            params = [A_guess, x0, width, width, width / 2]
 
-    # ---- default bounds (fully free) ----
-    if bounds is None:
-        lower = [-np.inf] * len(p0)
-        upper = [np.inf] * len(p0)
-        bounds = (lower, upper)
+        elif model == "skew":
+            params = [A_guess, x0, width, width / 2, 0]
 
-    # ---- fit ----
-    popt, _ = curve_fit(model_fun, x, y, p0=p0, bounds=bounds)
+        else:
+            raise ValueError(f"Unknown model type: {model}")
 
-    # ---- evaluate ----
-    y_fit = model_fun(x, *popt)
+        # Remove fixed μ if specified
+        if "mu" in peak:
+            params.pop(1)
 
-    f1, _ = build_model(model1, model2)[0], None  # reuse split logic
-    peak1 = lambda x, *p: build_model(model1, model2)[0](x, *p[:n1])
-    peak2 = lambda x, *p: build_model(model1, model2)[0](x, *p[n1:])
+        default_p0.extend(params)
 
-    peak1_fit = peak1(x, *popt)
-    peak2_fit = peak2(x, *popt)
+    # ---- Initial guess handling ----
+    if p0 is None:
+        p0 = generate_default_p0(peaks, x, y)
 
-    residual = y - y_fit
+    final_p0 = flatten_params(peaks, p0)
 
-    return {
+    # Fallback if invalid p0
+    if final_p0 is None:
+        if debug:
+            print("Invalid p0 → falling back to default guess")
+        p0 = generate_default_p0(peaks, x, y)
+        final_p0 = flatten_params(peaks, p0)
+
+    # ---- Bounds handling ----
+    validated_bounds = validate_bounds(bounds, len(final_p0))
+
+    if validated_bounds is None:
+        final_bounds = generate_default_bounds(peaks)
+    else:
+        final_bounds = validated_bounds
+
+    # ---- Perform fit ----
+    popt, _ = curve_fit(
+        model_fun,
+        x,
+        y,
+        p0=final_p0,
+        bounds=final_bounds
+    )
+
+    # ---- Compute fitted curves ----
+    total_fit = model_fun(x, *popt)
+
+    # Individual peak contributions
+    peak_fits = []
+    for (start, end), peak in zip(param_slices, peaks):
+        sub_params = popt[start:end]
+
+        # Build single-peak model
+        single_model, _, _ = build_model([peak])
+        peak_fits.append(single_model(x, *sub_params))
+
+    # Residuals
+    residual = y - total_fit
+
+    # ---- Package results ----
+    result = {
         "popt": popt,
-        "total_fit": y_fit,
-        "peak1_fit": peak1_fit,
-        "peak2_fit": peak2_fit,
+        "param_names": param_names,
+        "total_fit": total_fit,
+        "peak_fits": peak_fits,
         "residual": residual,
-        "p0": p0
+        "p0": final_p0,
+        "bounds": final_bounds,
+        "model_function": model_fun,
+        "param_slices": param_slices,
     }
+
+    # ---- Debug output ----
+    if debug:
+        print("\nFitted parameters:")
+        for name, value in zip(param_names, popt):
+            print(f"{name}: {value}")
+
+    return result
