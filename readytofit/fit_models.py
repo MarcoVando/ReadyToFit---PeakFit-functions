@@ -38,7 +38,7 @@ def fit_model(
 
     p0 : list of float, optional
         Initial parameter guess (flattened across all peaks).
-        Can be partial or contain None values → auto-filled.
+        Can be partial or contain None values - auto-filled.
 
     bounds : tuple (lower, upper), optional
         Bounds for parameters. Each must match parameter length.
@@ -83,7 +83,7 @@ def fit_model(
     # Fallback if invalid p0
     if final_p0 is None:
         if debug:
-            print("Invalid p0 → falling back to manual default guess")
+            print("Invalid p0 - falling back to manual default guess")
         peaks_estimated = estimate_initial_parameters(x, y, peaks)
         p0 = peaks_estimated
         final_p0 = flatten_params(peaks, p0)

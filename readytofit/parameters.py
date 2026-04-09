@@ -20,6 +20,7 @@ PARAM_ORDER = {
     "voigt": ["A", "mu", "sigma", "gamma"],
     "asym":  ["A", "mu", "sigma_L", "sigma_R", "gamma"],
     "skew":  ["A", "mu", "sigma", "gamma", "alpha"],
+    "emg":   ["A", "mu", "sigma", "lam"]
 }
 
 
@@ -201,6 +202,10 @@ def generate_default_p0(peaks: List[Dict], x: np.ndarray, y: np.ndarray) -> List
             params["sigma"] = width
             params["gamma"] = width / 2
             params["alpha"] = 0
+        
+        elif model == "emg":
+            params["sigma"] = width
+            params["lam"] = 1 / width
 
         p0.append(params)
 
