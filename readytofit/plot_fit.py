@@ -1,4 +1,4 @@
-\"\"\"Visualization utilities for fitting results.
+"""Visualization utilities for fitting results.
 
 Provides comprehensive plotting of multi-peak fitting results with:
 - Raw data and total fit overlay
@@ -8,7 +8,7 @@ Provides comprehensive plotting of multi-peak fitting results with:
 - RMSE annotation
 
 Designed for easy comparison of data vs. fitted model.
-\"\"\"
+"""
 
 from typing import Optional, Dict
 import numpy as np
