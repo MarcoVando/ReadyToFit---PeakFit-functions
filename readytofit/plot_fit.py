@@ -13,7 +13,7 @@ Designed for easy comparison of data vs. fitted model.
 from typing import Optional, Dict
 import numpy as np
 import matplotlib.pyplot as plt
-
+import matplotlib.colors as mcolors
 
 def plot_fit_result( x: np.ndarray, y: np.ndarray, result: Dict, show_residual: bool = True,
                      residual_offset: float = -0.1, show_rmse: bool = True, fig: Optional[plt.Figure] = None, ax: Optional[plt.Axes] = None) -> (plt.Figure, plt.Axes):
@@ -68,15 +68,17 @@ def plot_fit_result( x: np.ndarray, y: np.ndarray, result: Dict, show_residual: 
     total_fit = result["total_fit"]
     ax.plot(x, total_fit, color="red", linewidth=2, label="total fit")
 
+    color_list = list(mcolors.TABLEAU_COLORS.values())
+
     # =========================================================
     # INDIVIDUAL PEAKS
     # =========================================================
     for i, peak in enumerate(result.get("peak_fits", [])):
         # dashed peak contribution
-        ax.plot( x, peak, linestyle="--", linewidth=1, alpha=0.9, label=f"peak {i}")
+        ax.plot( x, peak, linestyle="--", linewidth=1, alpha=0.9, label=f"peak {i}", color = color_list[i % len(color_list)] )
 
         # filled area under peak
-        ax.fill_between(x, peak, alpha=0.25)
+        ax.fill_between(x, peak, alpha=0.25, color = color_list[i % len(color_list)] )
 
     # =========================================================
     # RESIDUAL
