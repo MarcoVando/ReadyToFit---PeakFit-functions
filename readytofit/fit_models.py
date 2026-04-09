@@ -102,7 +102,8 @@ def fit_model(
         x,
         y,
         p0=final_p0,
-        bounds=final_bounds
+        bounds=final_bounds,
+        maxfev=10000  # Increase max function evaluations for complex fits
     )
 
     # ---- Compute fitted curves ----
