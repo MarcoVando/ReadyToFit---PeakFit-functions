@@ -43,7 +43,8 @@ def fit_model(
     bounds : tuple (lower, upper), optional
         Bounds for parameters. Each must match parameter length.
         Use None entries for defaults.
-        To fix a parameter: set lower[i] == upper[i].
+        To fix a parameter: set lower[i] = value-1e-12, upper[i] = value-1e-12.  
+        Please note: lower[i] == upper[i] will raise an exception from scipy
 
     debug : bool, default=False
         If True, prints fitted parameter values.
