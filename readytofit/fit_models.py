@@ -1,7 +1,7 @@
 from scipy.optimize import curve_fit
 import numpy as np
 from .models import build_model
-from .parameters import flatten_params, unflatten_params, generate_default_p0, validate_bounds, generate_default_bounds
+from .parameters import flatten_params, flatten_bounds, unflatten_params, generate_default_p0, validate_bounds, generate_default_bounds
 from .peak_detection import estimate_initial_parameters
 from typing import List, Dict, Tuple, Callable, Optional
 
@@ -9,8 +9,8 @@ def fit_model(
     x: np.ndarray,
     y: np.ndarray,
     peaks: List[Dict],
-    p0: Optional[List[float]] = None,
-    bounds: Optional[Tuple[List[float], List[float]]] = None,
+    p0: Optional[List[Dict]] = None,
+    bounds: Optional[List[Dict]] = None,
     debug: bool = False
 ) -> Dict:
     """
@@ -36,15 +36,17 @@ def fit_model(
             - "mu": float
                 If provided, fixes the peak center (μ is not fitted).
 
-    p0 : list of float, optional
-        Initial parameter guess (flattened across all peaks).
-        Can be partial or contain None values - auto-filled.
+    p0 : list of dict, optional
+        Initial parameter guess (one dict per peak).
+        Each dict maps param_name -> initial_value.
+        Can contain None values or missing keys - auto-filled.
 
-    bounds : tuple (lower, upper), optional
-        Bounds for parameters. Each must match parameter length.
+    bounds : list of dict, optional
+        Bounds for parameters (one dict per peak).
+        Each dict maps param_name -> (lower, upper).
         Use None entries for defaults.
-        To fix a parameter: set lower[i] = value-1e-12, upper[i] = value-1e-12.  
-        Please note: lower[i] == upper[i] will raise an exception from scipy
+        To fix a parameter: set lower == upper (but scipy requires lower < upper,
+        so use v-1e-12 and v+1e-12 instead).
 
     debug : bool, default=False
         If True, prints fitted parameter values.
@@ -61,8 +63,8 @@ def fit_model(
         - "peak_fits": list of individual peak curves
         - "residual": y - total_fit
         - "rmse": root mean square error
-        - "p0": final initial guess used
-        - "bounds": final bounds used
+        - "p0": final initial guess used (structured)
+        - "bounds": final bounds used (structured)
         - "model_function": callable model
         - "param_slices": parameter index ranges per peak
     """
@@ -89,12 +91,15 @@ def fit_model(
         final_p0 = flatten_params(peaks, p0)
 
     # ---- Bounds handling ----
-    validated_bounds = validate_bounds(bounds, len(final_p0))
+    validated_bounds = validate_bounds(bounds, peaks)
 
     if validated_bounds is None:
-        final_bounds = generate_default_bounds(peaks)
+        final_bounds_structured = generate_default_bounds(peaks)
     else:
-        final_bounds = validated_bounds
+        final_bounds_structured = validated_bounds
+
+    # Convert structured bounds to flat format for curve_fit
+    final_bounds = flatten_bounds(peaks, final_bounds_structured)
 
     # ---- Perform fit ----
     popt, _ = curve_fit(
@@ -134,7 +139,7 @@ def fit_model(
         "residual": residual,
         "rmse": np.sqrt(np.mean(residual**2)),
         "p0": final_p0,
-        "bounds": final_bounds,
+        "bounds": final_bounds_structured,
         "model_function": model_fun,
         "param_slices": param_slices,
     }

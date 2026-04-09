@@ -93,6 +93,76 @@ def flatten_params(peaks: List[Dict], p0_list: List[Dict]) -> Optional[List[floa
     return flat_params
 
 
+def flatten_bounds(
+    peaks: List[Dict],
+    bounds_list: List[Dict]
+) -> Optional[Tuple[List[float], List[float]]]:
+    """
+    Convert structured bounds dictionaries into flat (lower, upper) tuple.
+
+    Parameters
+    ----------
+    peaks : list of dict
+        Peak definitions.
+
+    bounds_list : list of dict
+        Bounds per peak (one dict per peak).
+        Each dict maps param_name -> (lower, upper).
+
+    Returns
+    -------
+    bounds : tuple (lower, upper) or None
+        Flattened bounds for curve_fit, or None if input is invalid.
+    """
+
+    # ---- Validate input type ----
+    if not isinstance(bounds_list, list) or not all(isinstance(b, dict) for b in bounds_list):
+        warnings.warn(
+            "bounds must be a list of dictionaries (one per peak). Falling back to defaults.",
+            UserWarning
+        )
+        return None
+
+    # ---- Validate length ----
+    if len(bounds_list) != len(peaks):
+        warnings.warn(
+            f"bounds length ({len(bounds_list)}) != number of peaks ({len(peaks)}). "
+            "Missing peaks will use defaults.",
+            UserWarning
+        )
+
+    lower, upper = [], []
+
+    for peak_idx, peak in enumerate(peaks):
+        model = peak["model"]
+
+        if model not in PARAM_ORDER:
+            raise ValueError(f"Unknown model: {model}")
+
+        # Remove fixed parameters
+        param_names = PARAM_ORDER[model]
+        if "mu" in peak:
+            param_names = [n for n in param_names if n != "mu"]
+
+        # Safe access to user bounds
+        bounds = bounds_list[peak_idx] if peak_idx < len(bounds_list) else {}
+
+        for name in param_names:
+            if name in bounds:
+                lo, hi = bounds[name]
+                lower.append(lo)
+                upper.append(hi)
+            else:
+                warnings.warn(
+                    f"Missing bounds for '{name}' in peak {peak_idx}. Using defaults (-inf, inf).",
+                    UserWarning
+                )
+                lower.append(-np.inf)
+                upper.append(np.inf)
+
+    return (lower, upper)
+
+
 def unflatten_params(peaks: List[Dict], popt: List[float]) -> List[Dict]:
     """
     Convert flat parameter array back into structured dictionaries.
@@ -212,9 +282,9 @@ def generate_default_p0(peaks: List[Dict], x: np.ndarray, y: np.ndarray) -> List
     return p0
 
 
-def generate_default_bounds(peaks: List[Dict]) -> Tuple[List[float], List[float]]:
+def generate_default_bounds(peaks: List[Dict]) -> List[Dict]:
     """
-    Generate default parameter bounds (no constraints).
+    Generate default parameter bounds (no constraints, structured form).
 
     Parameters
     ----------
@@ -223,11 +293,11 @@ def generate_default_bounds(peaks: List[Dict]) -> Tuple[List[float], List[float]
 
     Returns
     -------
-    bounds : tuple (lower, upper)
-        Flat bounds lists for curve_fit.
+    bounds : list of dict
+        Default bounds per peak, where each dict maps param_name -> (lower, upper).
     """
 
-    lower, upper = [], []
+    bounds = []
 
     for peak in peaks:
         model = peak["model"]
@@ -241,11 +311,13 @@ def generate_default_bounds(peaks: List[Dict]) -> Tuple[List[float], List[float]
         if "mu" in peak:
             param_names = [n for n in param_names if n != "mu"]
 
-        for _ in param_names:
-            lower.append(-np.inf)
-            upper.append(np.inf)
+        peak_bounds = {}
+        for name in param_names:
+            peak_bounds[name] = (-np.inf, np.inf)
 
-    return lower, upper
+        bounds.append(peak_bounds)
+
+    return bounds
 
 
 # ---------------------------------------------------------------------
@@ -253,23 +325,23 @@ def generate_default_bounds(peaks: List[Dict]) -> Tuple[List[float], List[float]
 # ---------------------------------------------------------------------
 
 def validate_bounds(
-    bounds: Optional[Tuple[List[float], List[float]]],
-    expected_len: int
-) -> Optional[Tuple[List[float], List[float]]]:
+    bounds: Optional[List[Dict]],
+    peaks: List[Dict]
+) -> Optional[List[Dict]]:
     """
-    Validate bounds structure and size.
+    Validate bounds structure (list of dicts format).
 
     Parameters
     ----------
-    bounds : tuple or None
-        Candidate bounds.
+    bounds : list of dict or None
+        Candidate bounds (one dict per peak, mapping param_name -> (lower, upper)).
 
-    expected_len : int
-        Expected number of parameters.
+    peaks : list of dict
+        Peak definitions (used to validate structure).
 
     Returns
     -------
-    bounds : tuple or None
+    bounds : list of dict or None
         Validated bounds or None if invalid.
     """
 
@@ -277,19 +349,17 @@ def validate_bounds(
         return None
 
     # Structure check
-    if not isinstance(bounds, tuple) or len(bounds) != 2:
+    if not isinstance(bounds, list) or not all(isinstance(b, dict) for b in bounds):
         warnings.warn(
-            "Bounds must be a tuple (lower, upper). Using defaults.",
+            "Bounds must be a list of dictionaries (one per peak). Using defaults.",
             UserWarning
         )
         return None
 
-    lower, upper = bounds
-
     # Length check
-    if len(lower) != expected_len or len(upper) != expected_len:
+    if len(bounds) != len(peaks):
         warnings.warn(
-            f"Bounds size mismatch (expected {expected_len}). Using defaults.",
+            f"Bounds length ({len(bounds)}) != number of peaks ({len(peaks)}). Using defaults.",
             UserWarning
         )
         return None
