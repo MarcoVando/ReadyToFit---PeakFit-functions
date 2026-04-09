@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="readytofit",
-    version="1.0.0",
+    version="1.0.1",
     author="Marco Vandone",
     author_email="marco.vandone@gmail.com",
     description="A flexible and modular Python toolkit for multi-peak curve fitting",
