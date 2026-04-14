@@ -91,7 +91,13 @@ def get_model(model_name):
             lambda x, A, mu, sigma: gaussian(x, A, mu, sigma),
             ["A", "mu", "sigma"]
         )
-
+    
+    elif model_name == "lorentz":
+        return (
+            lambda x, A, mu, gamma: lorentzian(x, A, mu, gamma),
+            ["A", "mu", "sigma", "gamma"]
+        )
+    
     elif model_name == "voigt":
         return (
             lambda x, A, mu, sigma, gamma: voigt(x, A, mu, sigma, gamma),
