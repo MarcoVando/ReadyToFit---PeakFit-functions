@@ -311,3 +311,12 @@ matplotlib
 
 This project is designed as a modular research-grade fitting system, not a black-box tool.
 Each component can be reused independently in scientific workflows.
+
+### To add new peak types
+
+To add new functions you need the following changes:
+- Insert the function definition into functions.py
+- Add dedicated section in get_model() inside functions.py
+- Add dedicated entry inside the PARAM_ORDER dictionary inside parameters.py
+- Add dedicated section in generate_default_p0() inside parameters.py
+- Add the new peak name into *peak_types* variable inside test.py in the peaks import section 

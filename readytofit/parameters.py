@@ -16,11 +16,12 @@ import numpy as np
 
 # ---- Parameter definitions per model ----
 PARAM_ORDER = {
-    "gauss": ["A", "mu", "sigma"],
-    "voigt": ["A", "mu", "sigma", "gamma"],
-    "asym":  ["A", "mu", "sigma_L", "sigma_R", "gamma"],
-    "skew":  ["A", "mu", "sigma", "gamma", "alpha"],
-    "emg":   ["A", "mu", "sigma", "lam"]
+    "gauss":       ["A", "mu", "sigma"],
+    "lorentz":     ["A", "mu", "gamma"],
+    "voigt":       ["A", "mu", "sigma", "gamma"],
+    "asym":        ["A", "mu", "sigma_L", "sigma_R", "gamma"],
+    "skew":        ["A", "mu", "sigma", "gamma", "alpha"],
+    "emg_reversed": ["A", "mu", "sigma", "lam"]
 }
 
 
@@ -259,6 +260,9 @@ def generate_default_p0(peaks: List[Dict], x: np.ndarray, y: np.ndarray) -> List
         if model == "gauss":
             params["sigma"] = width
 
+        elif model == "lorentz":
+            params["gamma"] = width
+
         elif model == "voigt":
             params["sigma"] = width
             params["gamma"] = width / 2
@@ -274,6 +278,10 @@ def generate_default_p0(peaks: List[Dict], x: np.ndarray, y: np.ndarray) -> List
             params["alpha"] = 0
         
         elif model == "emg":
+            params["sigma"] = width
+            params["lam"] = 1 / width
+
+        elif model == "emg_reversed":
             params["sigma"] = width
             params["lam"] = 1 / width
 

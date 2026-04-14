@@ -34,6 +34,15 @@ def test_basic_fit():
     for i, peak in enumerate(result['params']):
         print(f"  Peak {i+1}: {peak}")
 
+    # Test the usage of all the peak types
+    print("\nTesting all peak types...")
+    peak_types = ["gauss", "lorentz", "voigt", "asym", "skew", "emg_reversed"]
+    for pt in peak_types:
+        print(f"  Testing model: {pt}")
+        peaks = [{"model": pt}]
+        result = fit_model(x, y, peaks)
+        print(f"    RMSE: {result['rmse']:.4f}")
+    
     # Evaluate areas
     areas = evaluate_peak_areas(x, result)
     print(f"Peak areas: {areas['peaks']}")

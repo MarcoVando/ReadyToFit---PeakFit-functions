@@ -95,7 +95,7 @@ def get_model(model_name):
     elif model_name == "lorentz":
         return (
             lambda x, A, mu, gamma: lorentzian(x, A, mu, gamma),
-            ["A", "mu", "sigma", "gamma"]
+            ["A", "mu", "gamma"]
         )
     
     elif model_name == "voigt":
